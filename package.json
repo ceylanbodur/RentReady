@@ -1,5 +1,0 @@
-{
-  "name": "nyc-rental-proxy",
-  "version": "1.0.0",
-  "description": "CORS proxy for Firecrawl API"
-}
