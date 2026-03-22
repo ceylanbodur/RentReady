@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Rental Search</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f7f4; color: #1a1a1a; min-height: 100vh; }
+
+  .app { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 14px; color: #666; margin-bottom: 2rem; }
+
+  .card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-title { font-size: 13px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 1rem; }
+
+  label { display: block; font-size: 14px; color: #444; margin-bottom: 0.35rem; margin-top: 1rem; }
+  label:first-of-type { margin-top: 0; }
+
+  input[type="text"], input[type="number"], select, input[type="password"] {
+    width: 100%; padding: 9px 12px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px;
+    font-size: 14px; background: #fff; color: #1a1a1a; outline: none;
+  }
+  input:focus, select:focus { border-color: rgba(0,0,0,0.4); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .amenities-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 0.5rem; }
+  .amenity-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 8px; cursor: pointer; transition: all 0.15s; font-size: 13px; background: #fff; }
+  .amenity-item:hover { border-color: rgba(0,0,0,0.3); background: #f8f7f4; }
+  .amenity-item.selected { border-color: #1a1a1a; background: #1a1a1a; color: #fff; }
+  .amenity-item input { display: none; }
+
+  .priority-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid rgba(0,0,0,0.07); font-size: 13px; }
+  .priority-row:last-child { border-bottom: none; }
+  .priority-label { flex: 1; }
+  .priority-select { width: auto; padding: 4px 8px; font-size: 12px; }
+
+  .btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; margin-top: 1rem; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: transparent; color: #1a1a1a; border: 0.5px solid rgba(0,0,0,0.2); }
+
+  .step-indicator { display: flex; gap: 6px; margin-bottom: 1.75rem; }
+  .step { flex: 1; height: 3px; border-radius: 2px; background: #e0ddd6; transition: background 0.3s; }
+  .step.active { background: #1a1a1a; }
+  .step.done { background: #888; }
+
+  .status-box { background: #f8f7f4; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 1rem 1.25rem; font-size: 13px; color: #555; line-height: 1.6; margin-top: 1rem; }
+  .status-line { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+  .dot.active { background: #1a1a1a; animation: pulse 1s infinite; }
+  .dot.done { background: #3B6D11; }
+  .dot.error { background: #A32D2D; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .listing-card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .listing-rank { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #1a1a1a; color: #fff; font-size: 12px; font-weight: 500; margin-right: 8px; flex-shrink: 0; }
+  .listing-header { display: flex; align-items: flex-start; margin-bottom: 10px; }
+  .listing-title { font-size: 15px; font-weight: 500; flex: 1; }
+  .listing-price { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+  .listing-address { font-size: 13px; color: #666; margin-top: 2px; }
+  .listing-score { display: inline-block; background: #EAF3DE; color: #3B6D11; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 20px; margin: 8px 0; }
+  .listing-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: #f0ede6; color: #555; }
+  .tag.match { background: #E1F5EE; color: #0F6E56; }
+  .listing-summary { font-size: 13px; color: #555; line-height: 1.6; margin-top: 8px; }
+  .listing-link { display: inline-block; margin-top: 10px; font-size: 13px; color: #1a1a1a; text-decoration: underline; text-underline-offset: 2px; }
+
+  .error-box { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: 8px; padding: 1rem 1.25rem; font-size: 13px; color: #791F1F; margin-top: 1rem; line-height: 1.6; }
+
+  .api-note { font-size: 12px; color: #999; margin-top: 6px; }
+
+  .neighborhoods-hint { font-size: 12px; color: #999; margin-top: 4px; }
+
+  select[multiple] { height: auto; min-height: 44px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>NYC Rental Search</h1>
+  <p class="subtitle">Find and rank apartments across StreetEasy, tailored to what matters most to you.</p>
+
+  <div class="step-indicator">
+    <div class="step active" id="step-dot-1"></div>
+    <div class="step" id="step-dot-2"></div>
+    <div class="step" id="step-dot-3"></div>
+  </div>
+
+  <!-- STEP 1: API Key + Search basics -->
+  <div id="view-step1">
+    <div class="card">
+      <div class="card-title">Setup</div>
+      <label>Proxy URL</label>
+      <input type="text" id="proxy-url" value="https://rent-ready-five.vercel.app" />
+      <p class="api-note">Your Vercel proxy URL (see setup instructions). No trailing slash.</p>
+      <label>Firecrawl API key</label>
+      <input type="password" id="fc-key" placeholder="fc-xxxxxxxxxxxxxxxx" />
+      <p class="api-note">Used only in your browser. Never stored or sent anywhere except Firecrawl.</p>
+      <label>Anthropic API key</label>
+      <input type="password" id="anthropic-key" placeholder="sk-ant-xxxxxxxxxxxxxxxx" />
+      <p class="api-note">Used to rank your results with Claude.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Search</div>
+      <label>Neighborhood(s)</label>
+      <input type="text" id="neighborhoods" placeholder="e.g. Williamsburg, Greenpoint, Astoria" />
+      <p class="neighborhoods-hint">Separate multiple neighborhoods with commas</p>
+      <div class="row" style="margin-top:1rem">
+        <div>
+          <label>Min price ($/mo)</label>
+          <input type="number" id="price-min" placeholder="2000" />
+        </div>
+        <div>
+          <label>Max price ($/mo)</label>
+          <input type="number" id="price-max" placeholder="3500" />
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="goToStep2()">Next: Set preferences</button>
+  </div>
+
+  <!-- STEP 2: Preferences + priorities -->
+  <div id="view-step2" style="display:none">
+    <div class="card">
+      <div class="card-title">Size requirements</div>
+      <div class="row">
+        <div>
+          <label>Min bedrooms</label>
+          <select id="min-beds">
+            <option value="0">Studio (0)</option>
+            <option value="1" selected>1 bedroom</option>
+            <option value="2">2 bedrooms</option>
+            <option value="3">3 bedrooms</option>
+            <option value="4">4+ bedrooms</option>
+          </select>
+        </div>
+        <div>
+          <label>Min bathrooms</label>
+          <select id="min-baths">
+            <option value="1" selected>1 bathroom</option>
+            <option value="1.5">1.5 bathrooms</option>
+            <option value="2">2 bathrooms</option>
+            <option value="3">3+ bathrooms</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Must-haves & nice-to-haves</div>
+      <p style="font-size:13px;color:#666;margin-bottom:1rem">Select everything you care about. You'll prioritize them next.</p>
+      <div class="amenities-grid" id="amenities-grid">
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="in_unit_washer_dryer"> In-unit washer/dryer
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="dishwasher"> Dishwasher
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="doorman"> Doorman / concierge
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="elevator"> Elevator building
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="gym"> Gym / fitness
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="outdoor_space"> Outdoor space
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="commute"> Near subway / commute
+        </label>
+        <label class="amenity-item" onclick="toggleAmenity(this)">
+          <input type="checkbox" value="move_in_date"> Flexible move-in date
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pet policy</div>
+      <label style="margin-top:0">Do you have a pet?</label>
+      <select id="pet-policy">
+        <option value="no">No pet</option>
+        <option value="yes_hard">Yes - only show pet-friendly listings</option>
+        <option value="yes_soft">Yes - prefer pet-friendly, but include unlisted too</option>
+      </select>
+      <p class="api-note" id="pet-note" style="margin-top:6px">If a listing doesn't mention pet policy, it will be included (many NYC landlords are case-by-case).</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Square footage <span style="font-size:11px;color:#aaa;font-weight:400;text-transform:none">(optional)</span></div>
+      <label style="margin-top:0">Minimum square footage</label>
+      <input type="number" id="min-sqft" placeholder="e.g. 600 (leave blank to skip)" />
+      <p class="api-note">Used as a soft preference - listings without sq ft info won't be excluded.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Building type <span style="font-size:11px;color:#aaa;font-weight:400;text-transform:none">(select all that apply)</span></div>
+      <div class="amenities-grid" style="margin-top:0.25rem">
+        <label class="amenity-item" onclick="toggleBuildingType(this)">
+          <input type="checkbox" value="condo"> Condo
+        </label>
+        <label class="amenity-item" onclick="toggleBuildingType(this)">
+          <input type="checkbox" value="rental"> Rental building
+        </label>
+        <label class="amenity-item" onclick="toggleBuildingType(this)">
+          <input type="checkbox" value="house"> House / townhouse
+        </label>
+        <label class="amenity-item" onclick="toggleBuildingType(this)">
+          <input type="checkbox" value="multifamily"> Multifamily
+        </label>
+        <label class="amenity-item" onclick="toggleBuildingType(this)">
+          <input type="checkbox" value="coop"> Co-op
+        </label>
+      </div>
+      <p class="api-note" style="margin-top:8px">Leave all unselected to include any building type.</p>
+    </div>
+
+    <div class="card" id="priority-card" style="display:none">
+      <div class="card-title">Prioritize what matters most</div>
+      <div id="priority-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Anything else?</div>
+      <label>Additional preferences or notes for Claude</label>
+      <input type="text" id="extra-notes" placeholder="e.g. top floor preferred, quiet street, close to Whole Foods..." />
+      <label style="margin-top:1rem">Ideal move-in date</label>
+      <input type="text" id="move-in" placeholder="e.g. June 1, flexible" />
+    </div>
+
+    <button class="btn" onclick="startSearch()">Search & rank apartments</button>
+    <button class="btn btn-secondary" onclick="goToStep1()" style="margin-top:8px">Back</button>
+  </div>
+
+  <!-- STEP 3: Results -->
+  <div id="view-step3" style="display:none">
+    <div class="status-box" id="status-box">
+      <div class="status-line"><div class="dot" id="dot1"></div><span id="msg1">Waiting to start...</span></div>
+      <div class="status-line"><div class="dot" id="dot2"></div><span id="msg2">Layer 2: scrape each listing</span></div>
+      <div class="status-line"><div class="dot" id="dot3"></div><span id="msg3">Rank with Claude</span></div>
+    </div>
+    <div id="results-container" style="margin-top:1.5rem"></div>
+    <button class="btn btn-secondary" onclick="goToStep2()" style="margin-top:1rem;display:none" id="search-again-btn">Search again</button>
+  </div>
+</div>
+
+<script>
+const AMENITY_LABELS = {
+  in_unit_washer_dryer: 'In-unit washer/dryer',
+  dishwasher: 'Dishwasher',
+  doorman: 'Doorman / concierge',
+  elevator: 'Elevator building',
+  gym: 'Gym / fitness',
+  outdoor_space: 'Outdoor space',
+  commute: 'Near subway / commute',
+  move_in_date: 'Flexible move-in date'
+};
+
+let selectedAmenities = [];
+let selectedBuildingTypes = [];
+let priorities = {};
+
+function goToStep1() {
+  show('view-step1'); hide('view-step2'); hide('view-step3');
+  setStep(1);
+}
+function goToStep3() {
+  show('view-step3'); hide('view-step1'); hide('view-step2');
+  setStep(3);
+}
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('step-dot-'+i);
+    el.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+  });
+}
+
+function goToStep2() {
+  const proxyUrl = document.getElementById('proxy-url').value.trim();
+  const fcKey = document.getElementById('fc-key').value.trim();
+  const anthropicKey = document.getElementById('anthropic-key').value.trim();
+  const neighborhoods = document.getElementById('neighborhoods').value.trim();
+  const priceMax = document.getElementById('price-max').value.trim();
+  if (!proxyUrl || !fcKey || !anthropicKey || !neighborhoods || !priceMax) {
+    alert('Please fill in all fields before continuing.');
+    return;
+  }
+  show('view-step2'); hide('view-step1'); hide('view-step3');
+  setStep(2);
+}
+
+function toggleAmenity(el) {
+  el.classList.toggle('selected');
+  const val = el.querySelector('input').value;
+  if (el.classList.contains('selected')) {
+    if (!selectedAmenities.includes(val)) selectedAmenities.push(val);
+  } else {
+    selectedAmenities = selectedAmenities.filter(v => v !== val);
+  }
+  renderPriorityList();
+}
+
+function toggleBuildingType(el) {
+  el.classList.toggle('selected');
+  const val = el.querySelector('input').value;
+  if (el.classList.contains('selected')) {
+    if (!selectedBuildingTypes.includes(val)) selectedBuildingTypes.push(val);
+  } else {
+    selectedBuildingTypes = selectedBuildingTypes.filter(v => v !== val);
+  }
+}
+
+function renderPriorityList() {
+  const card = document.getElementById('priority-card');
+  const list = document.getElementById('priority-list');
+  if (selectedAmenities.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  list.innerHTML = selectedAmenities.map(function(val) {
+    return '<div class="priority-row">' +
+      '<span class="priority-label">' + AMENITY_LABELS[val] + '</span>' +
+      '<select class="priority-select" id="pri-' + val + '">' +
+        '<option value="must_have">Must have</option>' +
+        '<option value="high" selected>High priority</option>' +
+        '<option value="medium">Medium priority</option>' +
+        '<option value="nice_to_have">Nice to have</option>' +
+      '</select></div>';
+  }).join('');
+}
+
+function buildStreetEasyUrl(neighborhoods, priceMin, priceMax) {
+  const hood = neighborhoods.split(',')[0].trim().toLowerCase().replace(/\s+/g, '-');
+  let url = `https://streeteasy.com/for-rent/${hood}`;
+  if (priceMin && priceMax) url += `/price:${priceMin}-${priceMax}`;
+  else if (priceMax) url += `/price:-${priceMax}`;
+  else if (priceMin) url += `/price:${priceMin}-`;
+  return url;
+}
+
+async function startSearch() {
+  const prefs = {};
+  selectedAmenities.forEach(val => {
+    prefs[val] = document.getElementById('pri-'+val)?.value || 'high';
+  });
+  priorities = prefs;
+  goToStep3();
+
+  const proxyUrl = document.getElementById('proxy-url').value.trim();
+  const fcKey = document.getElementById('fc-key').value.trim();
+  const anthropicKey = document.getElementById('anthropic-key').value.trim();
+  const neighborhoods = document.getElementById('neighborhoods').value.trim();
+  const priceMin = document.getElementById('price-min').value.trim();
+  const priceMax = document.getElementById('price-max').value.trim();
+  const extraNotes = document.getElementById('extra-notes').value.trim();
+  const moveIn = document.getElementById('move-in').value.trim();
+  const minBeds = document.getElementById('min-beds').value;
+  const minBaths = document.getElementById('min-baths').value;
+  const petPolicy = document.getElementById('pet-policy').value;
+  const minSqft = document.getElementById('min-sqft').value.trim();
+  const buildingTypes = selectedBuildingTypes.slice();
+
+  const searchUrl = buildStreetEasyUrl(neighborhoods, priceMin, priceMax);
+
+  setStatus(1, 'active', `Scraping StreetEasy search results...`);
+  setStatus(2, 'waiting', 'Layer 2: scrape each listing');
+  setStatus(3, 'waiting', 'Rank with Claude');
+  document.getElementById('results-container').innerHTML = '';
+
+  let listingUrls = [];
+  try {
+    const layer1 = await firecrawlScrape(fcKey, searchUrl, proxyUrl);
+    const extracted = extractListingUrls(layer1);
+    if (extracted.length === 0) throw new Error('No listings found on search results page. Try different neighborhoods or price range.');
+    listingUrls = extracted.slice(0, 12);
+    setStatus(1, 'done', `Found ${listingUrls.length} listings on StreetEasy`);
+  } catch(e) {
+    setStatus(1, 'error', 'Error: ' + e.message);
+    showError(e.message);
+    return;
+  }
+
+  setStatus(2, 'active', `Scraping details for ${listingUrls.length} listings...`);
+  let listingDetails = [];
+  try {
+    listingDetails = await firecrawlBatch(fcKey, listingUrls, proxyUrl);
+    setStatus(2, 'done', `Got details for ${listingDetails.length} listings`);
+  } catch(e) {
+    setStatus(2, 'error', 'Error: ' + e.message);
+    showError(e.message);
+    return;
+  }
+
+  setStatus(3, 'active', 'Ranking with Claude...');
+  try {
+    const ranked = await rankWithClaude(anthropicKey, listingDetails, {
+      neighborhoods, priceMin, priceMax, priorities, extraNotes, moveIn, minBeds, minBaths, petPolicy, minSqft, buildingTypes
+    });
+    setStatus(3, 'done', 'Done! Here are your top listings.');
+    renderResults(ranked);
+    document.getElementById('search-again-btn').style.display = 'block';
+  } catch(e) {
+    setStatus(3, 'error', 'Error: ' + e.message);
+    showError(e.message);
+  }
+}
+
+async function firecrawlScrape(apiKey, url, proxyUrl) {
+  const endpoint = proxyUrl
+    ? `${proxyUrl}/api/firecrawl?path=/v1/scrape`
+    : 'https://api.firecrawl.dev/v1/scrape';
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true })
+    });
+  } catch(e) {
+    throw new Error(`Network error calling proxy: ${e.message}. Endpoint: ${endpoint}`);
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Firecrawl error (${res.status})`);
+  }
+  const data = await res.json();
+  return data.data?.markdown || data.data?.content || '';
+}
+
+async function firecrawlBatch(apiKey, urls, proxyUrl) {
+  const endpoint = proxyUrl
+    ? `${proxyUrl}/api/firecrawl?path=/v1/batch/scrape`
+    : 'https://api.firecrawl.dev/v1/batch/scrape';
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ urls, formats: ['markdown'], onlyMainContent: true })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Firecrawl batch error (${res.status})`);
+  }
+  const data = await res.json();
+  const jobId = data.id;
+  if (!jobId) throw new Error('No batch job ID returned from Firecrawl');
+  return await pollBatchJob(apiKey, jobId, urls, proxyUrl);
+}
+
+async function pollBatchJob(apiKey, jobId, originalUrls, proxyUrl) {
+  for (let i = 0; i < 30; i++) {
+    await sleep(4000);
+    const endpoint = proxyUrl
+      ? `${proxyUrl}/api/firecrawl?path=/v1/batch/scrape/${jobId}`
+      : `https://api.firecrawl.dev/v1/batch/scrape/${jobId}`;
+    const res = await fetch(endpoint, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) continue;
+    const data = await res.json();
+    if (data.status === 'completed') {
+      return (data.data || []).map((item, idx) => ({
+        url: originalUrls[idx] || item.metadata?.sourceURL || '',
+        content: item.markdown || item.content || ''
+      }));
+    }
+    if (data.status === 'failed') throw new Error('Firecrawl batch job failed');
+    const done = data.completed || 0;
+    const total = data.total || originalUrls.length;
+    setStatus(2, 'active', `Scraping listings... (${done}/${total})`);
+  }
+  throw new Error('Batch scrape timed out. Try fewer listings or try again.');
+}
+
+function extractListingUrls(markdown) {
+  const urls = [];
+  const patterns = [
+    /https:\/\/streeteasy\.com\/rental\/\d+/g,
+    /https:\/\/streeteasy\.com\/apartments-for-rent\/[a-z0-9-]+\/\d+/g,
+    /\/rental\/\d+/g
+  ];
+  for (const pattern of patterns) {
+    const matches = markdown.match(pattern) || [];
+    matches.forEach(m => {
+      const full = m.startsWith('http') ? m : 'https://streeteasy.com' + m;
+      if (!urls.includes(full)) urls.push(full);
+    });
+  }
+  return urls;
+}
+
+async function rankWithClaude(apiKey, listings, prefs) {
+  const priorityText = Object.entries(prefs.priorities || {})
+    .map(([k, v]) => `${AMENITY_LABELS[k]}: ${v.replace(/_/g,' ')}`)
+    .join(', ');
+
+  const listingText = listings.map((l, i) =>
+    `=== LISTING ${i+1} ===\nURL: ${l.url}\n${l.content.slice(0, 2000)}`
+  ).join('\n\n');
+
+  const petInstruction = prefs.petPolicy === 'yes_hard'
+    ? 'Pet policy: HARD FILTER - only include listings explicitly marked pet-friendly. Exclude any that say no pets.'
+    : prefs.petPolicy === 'yes_soft'
+    ? 'Pet policy: User has a pet. Prefer pet-friendly listings. If a listing does not mention pets at all, include it (treat as unknown, not as no). Only exclude listings explicitly marked no pets.'
+    : 'Pet policy: No pet, no filter needed.';
+
+  const sqftInstruction = prefs.minSqft
+    ? `Min square footage: ${prefs.minSqft} sqft (soft preference - if a listing does not mention size, do not exclude it, just note it as unknown).`
+    : '';
+
+  const buildingInstruction = prefs.buildingTypes && prefs.buildingTypes.length > 0
+    ? `Preferred building types: ${prefs.buildingTypes.join(', ')}. Soft preference - rank matching types higher but do not exclude others.`
+    : 'Building type: no preference.';
+
+  const prompt = `You are an expert NYC apartment search assistant. The user is looking for rentals with these preferences:
+
+Neighborhoods: ${prefs.neighborhoods}
+Price range: $${prefs.priceMin || 'any'} - $${prefs.priceMax}/month
+Min bedrooms: ${prefs.minBeds === '0' ? 'Studio or any' : prefs.minBeds + '+'}
+Min bathrooms: ${prefs.minBaths}+
+${petInstruction}
+${sqftInstruction}
+${buildingInstruction}
+Amenity priorities: ${priorityText}
+Note: dishwasher is a soft preference only - never exclude a listing for lacking it.
+Move-in: ${prefs.moveIn || 'flexible'}
+Additional notes: ${prefs.extraNotes || 'none'}
+
+Here are the scraped listings:
+${listingText}
+
+Rank the top listings from best to worst match. Treat min bedrooms and min bathrooms as hard filters - exclude any listing that clearly has fewer. For each listing return a JSON array. Each object must have:
+- rank (number)
+- url (string)
+- title (string, e.g. "2BR in Williamsburg")
+- address (string)
+- price (string, e.g. "$2,800/mo")
+- score (number 1-10)
+- matched_amenities (array of strings that the listing has and the user wants)
+- missing_amenities (array of strings the user wants but listing lacks)
+- summary (2-3 sentence explanation of why this ranks where it does)
+
+Return ONLY a valid JSON array, no other text.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Claude API error (${res.status})`);
+  }
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+function renderResults(listings) {
+  const container = document.getElementById('results-container');
+  if (!listings || listings.length === 0) {
+    container.innerHTML = '<div class="error-box">No results could be ranked. Try adjusting your search.</div>';
+    return;
+  }
+  container.innerHTML = '<p style="font-size:13px;color:#666;margin-bottom:1rem">Showing ' + listings.length + ' ranked listings</p>' +
+    listings.map(function(l) {
+      var matchTags = (l.matched_amenities || []).map(function(a) { return '<span class="tag match">' + a + '</span>'; }).join('');
+      var missingTags = (l.missing_amenities || []).map(function(a) { return '<span class="tag">' + a + ' (missing)</span>'; }).join('');
+      return '<div class="listing-card">' +
+        '<div class="listing-header">' +
+          '<span class="listing-rank">' + l.rank + '</span>' +
+          '<div style="flex:1">' +
+            '<div class="listing-title">' + (l.title || 'Apartment') + '</div>' +
+            '<div class="listing-address">' + (l.address || '') + '</div>' +
+          '</div>' +
+          '<div class="listing-price">' + (l.price || '') + '</div>' +
+        '</div>' +
+        '<div><span class="listing-score">Match score: ' + l.score + '/10</span></div>' +
+        '<div class="listing-tags">' + matchTags + missingTags + '</div>' +
+        '<div class="listing-summary">' + (l.summary || '') + '</div>' +
+        '<a class="listing-link" href="' + l.url + '" target="_blank">View on StreetEasy</a>' +
+      '</div>';
+    }).join('');
+}
+
+function setStatus(n, state, msg) {
+  const dot = document.getElementById('dot'+n);
+  const msgEl = document.getElementById('msg'+n);
+  dot.className = 'dot ' + (state === 'active' ? 'active' : state === 'done' ? 'done' : state === 'error' ? 'error' : '');
+  msgEl.textContent = msg;
+}
+
+function showError(msg) {
+  document.getElementById('results-container').innerHTML = `<div class="error-box"><strong>Something went wrong:</strong><br>${msg}<br><br>Check your API keys and try again. If StreetEasy is blocking scraping, try a different search URL structure.</div>`;
+  document.getElementById('search-again-btn').style.display = 'block';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
